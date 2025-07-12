@@ -86,7 +86,7 @@ module.exports = async (req, res) => {
 
         // Tính thời gian đã xử lý
         const elapsed = Date.now() - startTime;
-        const minDelay = 10000; // 10s = 10000ms
+        const minDelay = 5000; // 10s = 10000ms
 
         // Nếu xử lý xong mà chưa đủ 10s thì delay thêm cho đủ
         if (elapsed < minDelay) {
