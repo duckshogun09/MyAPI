@@ -47,7 +47,10 @@ module.exports = async (req, res) => {
 
         const filteredPasses = await Promise.all(
             allPasses
-                .filter(pass => pass.creator?.name?.toLowerCase() === username.toLowerCase())
+                .filter(pass =>
+                    pass.creator?.name?.toLowerCase() === username.toLowerCase() &&
+                    pass.price !== null // Chỉ lấy pass có price khác null
+                )
                 .map(async (pass) => {
                     try {
                         const thumbRes = await axios.get(
