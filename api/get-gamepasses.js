@@ -1,5 +1,8 @@
 const axios = require('axios');
 
+// Hàm delay
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 module.exports = async (req, res) => {
     // ⚠️ Bật CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,7 +21,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // Lấy userId từ username
+        // 1. Lấy thông tin user từ username
         const userResponse = await axios.post(
             'https://users.roblox.com/v1/usernames/users',
             {
@@ -37,17 +40,26 @@ module.exports = async (req, res) => {
 
         const userId = userData.id;
 
-        // Lấy danh sách gamepass
-        const passesRes = await axios.get(
-            `https://apis.roblox.com/game-passes/v1/users/${userId}/game-passes?count=100`
-        );
+        // 2. Lấy tất cả gamepass qua phân trang
+        let allPasses = [];
+        let nextCursor = null;
+        do {
+            const url = `https://apis.roblox.com/game-passes/v1/users/${userId}/game-passes?count=100${nextCursor ? `&cursor=${nextCursor}` : ''}`;
+            const response = await axios.get(url);
 
-        const allPasses = passesRes.data.gamePasses || [];
+            const gamePasses = response.data.gamePasses || [];
+            allPasses.push(...gamePasses);
 
-        // Lọc gamepass do chính user này tạo (so sánh bằng ID)
+            nextCursor = response.data.nextPageCursor;
+
+            // Đợi 800ms giữa mỗi trang để tránh rate limit
+            await sleep(800);
+        } while (nextCursor);
+
+        // 3. Lọc gamepass của chính người dùng
         const filtered = allPasses.filter(pass => pass.creator?.id === userId);
 
-        // Gộp toàn bộ assetId
+        // 4. Lấy tất cả iconAssetId
         const assetIds = filtered.map(pass => pass.iconAssetId).filter(Boolean);
         let thumbData = [];
 
@@ -62,13 +74,12 @@ module.exports = async (req, res) => {
                     }
                 });
                 thumbData = thumbRes.data.data || [];
-            } catch (thumbErr) {
-                // Nếu lỗi thumbnail thì để imageUrl null
+            } catch {
                 thumbData = [];
             }
         }
 
-        // Gắn thumbnail vào từng pass
+        // 5. Gắn thumbnail vào từng gamepass
         const filteredPasses = filtered.map(pass => {
             const thumb = thumbData.find(t => t.assetId === pass.iconAssetId);
             return {
@@ -79,6 +90,10 @@ module.exports = async (req, res) => {
             };
         });
 
+        // ✅ Chờ 10 giây trước khi trả kết quả
+        await sleep(10000);
+
+        // 6. Trả kết quả JSON
         res.status(200).json(filteredPasses);
 
     } catch (err) {
