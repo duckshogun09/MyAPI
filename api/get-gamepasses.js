@@ -1,6 +1,16 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
+    // ⚠️ Bật CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    // Xử lý preflight
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     const { username } = req.query;
 
     if (!username) {
@@ -8,7 +18,6 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // Lấy userId từ username
         const userResponse = await axios.post(
             'https://users.roblox.com/v1/usernames/users',
             {
@@ -27,14 +36,12 @@ module.exports = async (req, res) => {
 
         const userId = userData.id;
 
-        // Lấy danh sách gamepasses của user
         const passesRes = await axios.get(
             `https://apis.roblox.com/game-passes/v1/users/${userId}/game-passes?count=100`
         );
 
         const allPasses = passesRes.data.gamePasses || [];
 
-        // Lọc và xử lý thông tin từng gamepass
         const filteredPasses = await Promise.all(
             allPasses
                 .filter(pass => pass.creator?.name?.toLowerCase() === username.toLowerCase())
