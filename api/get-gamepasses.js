@@ -1,3 +1,5 @@
+// Endpoint: /api/get-gamepasses?username=<username roblox>
+
 const axios = require('axios');
 
 module.exports = async (req, res) => {
