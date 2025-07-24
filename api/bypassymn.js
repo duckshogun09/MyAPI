@@ -1,3 +1,5 @@
+// Endpoint: /api/bypassymn?type= (m88/w88/188bet/bk8/vn8/fb88/v9bet)
+
 export default async function handler(req, res) {
   const { type } = req.query;
 
