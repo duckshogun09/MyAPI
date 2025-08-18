@@ -41,19 +41,31 @@ module.exports = async (req, res) => {
 
         const userId = userData.id;
 
-        // Lấy danh sách gamepass
-        const passesRes = await axios.get(
-            `https://apis.roblox.com/game-passes/v1/users/${userId}/game-passes?count=100`
-        );
+        // ==== Lấy tất cả gamepasses qua phân trang ====
+        let allPasses = [];
+        let cursor = null;
+        do {
+            const passesRes = await axios.get(
+                `https://apis.roblox.com/game-passes/v1/users/${userId}/game-passes`,
+                {
+                    params: {
+                        count: 100,
+                        cursor
+                    }
+                }
+            );
 
-        const allPasses = passesRes.data.gamePasses || [];
+            const data = passesRes.data;
+            allPasses = allPasses.concat(data.gamePasses || []);
+            cursor = data.nextPageCursor || null;
+        } while (cursor);
 
         // Lọc + bổ sung link
         const filteredPasses = await Promise.all(
             allPasses
                 .filter(pass =>
                     pass.creator?.name?.toLowerCase() === username.toLowerCase() &&
-                    pass.price !== null
+                    pass.price !== null // Chỉ lấy pass có price khác null
                 )
                 .map(async (pass) => {
                     let imageUrl = null;
