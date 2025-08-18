@@ -19,10 +19,10 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'Thiếu username' });
     }
 
-    // Ghi lại thời gian bắt đầu
     const startTime = Date.now();
 
     try {
+        // Lấy userId từ username
         const userResponse = await axios.post(
             'https://users.roblox.com/v1/usernames/users',
             {
@@ -41,19 +41,22 @@ module.exports = async (req, res) => {
 
         const userId = userData.id;
 
+        // Lấy danh sách gamepass
         const passesRes = await axios.get(
             `https://apis.roblox.com/game-passes/v1/users/${userId}/game-passes?count=100`
         );
 
         const allPasses = passesRes.data.gamePasses || [];
 
+        // Lọc + bổ sung link
         const filteredPasses = await Promise.all(
             allPasses
                 .filter(pass =>
                     pass.creator?.name?.toLowerCase() === username.toLowerCase() &&
-                    pass.price !== null // Chỉ lấy pass có price khác null
+                    pass.price !== null
                 )
                 .map(async (pass) => {
+                    let imageUrl = null;
                     try {
                         const thumbRes = await axios.get(
                             `https://thumbnails.roblox.com/v1/assets`,
@@ -66,31 +69,22 @@ module.exports = async (req, res) => {
                                 }
                             }
                         );
+                        imageUrl = thumbRes.data.data?.[0]?.imageUrl || null;
+                    } catch {}
 
-                        const imageUrl = thumbRes.data.data?.[0]?.imageUrl || null;
-
-                        return {
-                            iconAssetId: pass.iconAssetId,
-                            name: pass.name,
-                            price: pass.price,
-                            imageUrl
-                        };
-                    } catch {
-                        return {
-                            iconAssetId: pass.iconAssetId,
-                            name: pass.name,
-                            price: pass.price,
-                            imageUrl: null
-                        };
-                    }
+                    return {
+                        gamePassId: pass.id,
+                        name: pass.name,
+                        price: pass.price,
+                        imageUrl,
+                        url: `https://www.roblox.com/game-pass/${pass.id}`
+                    };
                 })
         );
 
-        // Tính thời gian đã xử lý
+        // Delay tối thiểu 5s
         const elapsed = Date.now() - startTime;
-        const minDelay = 5000; // 10s = 10000ms
-
-        // Nếu xử lý xong mà chưa đủ 10s thì delay thêm cho đủ
+        const minDelay = 5000;
         if (elapsed < minDelay) {
             await new Promise(resolve => setTimeout(resolve, minDelay - elapsed));
         }
