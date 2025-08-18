@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
     const startTime = Date.now();
 
     try {
-        // Lấy thông tin user
+        // 🔹 Lấy thông tin user
         const userResponse = await axios.post(
             'https://users.roblox.com/v1/usernames/users',
             {
@@ -40,66 +40,58 @@ module.exports = async (req, res) => {
 
         const userId = userData.id;
 
-        // Lấy danh sách gamepasses
+        // 🔹 Lấy danh sách gamepasses
         const passesRes = await axios.get(
             `https://apis.roblox.com/game-passes/v1/users/${userId}/game-passes?count=100`
         );
 
         const allPasses = passesRes.data.gamePasses || [];
 
-        // Lọc + thêm dữ liệu chi tiết
-        const filteredPasses = await Promise.all(
-            allPasses
-                .filter(pass =>
-                    pass.creator?.name?.toLowerCase() === username.toLowerCase() &&
-                    pass.price !== null // Chỉ lấy pass có price khác null
-                )
-                .map(async (pass) => {
-                    try {
-                        const thumbRes = await axios.get(
-                            `https://thumbnails.roblox.com/v1/assets`,
-                            {
-                                params: {
-                                    assetIds: pass.iconAssetId,
-                                    size: '150x150',
-                                    format: 'Png',
-                                    type: 'Asset'
-                                }
-                            }
-                        );
-
-                        const imageUrl = thumbRes.data.data?.[0]?.imageUrl || null;
-
-                        return {
-                            gamePassId: pass.id, // ✅ Thêm ID gốc
-                            url: `https://www.roblox.com/game-pass/${pass.id}`, // ✅ Thêm URL
-                            iconAssetId: pass.iconAssetId,
-                            name: pass.name,
-                            price: pass.price,
-                            imageUrl
-                        };
-                    } catch {
-                        return {
-                            gamePassId: pass.id,
-                            url: `https://www.roblox.com/game-pass/${pass.id}`,
-                            iconAssetId: pass.iconAssetId,
-                            name: pass.name,
-                            price: pass.price,
-                            imageUrl: null
-                        };
-                    }
-                })
+        // 🔹 Lọc pass hợp lệ (creator trùng username + có giá)
+        const validPasses = allPasses.filter(pass =>
+            pass.creator?.name?.toLowerCase() === username.toLowerCase() &&
+            pass.price !== null
         );
 
-        // Tính thời gian đã xử lý
-        const elapsed = Date.now() - startTime;
-        const minDelay = 5000; // 5 giây
+        // 🔹 Gom tất cả iconAssetId để gọi thumbnails 1 lần
+        const iconIds = validPasses.map(p => p.iconAssetId).filter(Boolean);
 
+        let thumbsMap = {};
+        if (iconIds.length > 0) {
+            const thumbRes = await axios.get(`https://thumbnails.roblox.com/v1/assets`, {
+                params: {
+                    assetIds: iconIds.join(","), // gọi 1 lần nhiều id
+                    size: '150x150',
+                    format: 'Png',
+                    type: 'Asset'
+                }
+            });
+
+            // Tạo map assetId -> imageUrl
+            thumbsMap = (thumbRes.data.data || []).reduce((acc, item) => {
+                acc[item.targetId] = item.imageUrl;
+                return acc;
+            }, {});
+        }
+
+        // 🔹 Kết quả cuối cùng
+        const result = validPasses.map(pass => ({
+            gamePassId: pass.gamePassId,
+            url: `https://www.roblox.com/game-pass/${pass.gamePassId}`,
+            iconAssetId: pass.iconAssetId,
+            name: pass.name,
+            price: pass.price,
+            imageUrl: thumbsMap[pass.iconAssetId] || null
+        }));
+
+        // Delay tối thiểu 5 giây (nếu cần)
+        const elapsed = Date.now() - startTime;
+        const minDelay = 5000;
         if (elapsed < minDelay) {
             await new Promise(resolve => setTimeout(resolve, minDelay - elapsed));
         }
 
-        res.status(200).json(filteredPasses);
+        res.status(200).json(result);
 
     } catch (err) {
         res.status(500).json({
