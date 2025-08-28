@@ -37,21 +37,25 @@ export default async function handler(req, res) {
       NETWORK_IDS[Math.floor(Math.random() * NETWORK_IDS.length)];
 
     async function api(path, payload) {
-      const r = await fetch("https://www.ugphone.com/api/" + path, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json;charset=UTF-8",
-          accept: "application/json, text/plain, */*",
-          "access-token": config["UGPHONE-Token"],
-          "login-id": config["UGPHONE-ID"],
-          terminal: "web",
-          lang: config["ugPhoneLang"] || "en",
-          "web-fingerprint": config["ugBrowserId"] || "default-fp"
-        },
-        body: JSON.stringify(payload || {}),
-      });
-      return r.json();
-    }
+    const r = await fetch("https://www.ugphone.com/api/" + path, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json;charset=UTF-8",
+        "accept": "application/json, text/plain, */*",
+        "access-token": config["UGPHONE-Token"],
+        "login-id": config["UGPHONE-ID"],
+        "terminal": "web",
+        "lang": config["ugPhoneLang"] || "en",
+        "web-fingerprint": config["ugBrowserId"] || "default-fp",
+        // các header mô phỏng browser
+        "origin": "https://www.ugphone.com",
+        "referer": "https://www.ugphone.com/toc-portal/",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+    return r.json();
+  }
 
     // Step 0: newPackage (bắt buộc gọi trước)
     await api("apiv1/fee/newPackage", { check: 1 });
