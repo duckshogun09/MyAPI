@@ -1,4 +1,13 @@
 export default async function handler(req, res) {
+  // ✅ Fix CORS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -44,7 +53,7 @@ export default async function handler(req, res) {
       return r.json();
     }
 
-    // Step 0: newPackage
+    // Step 0: newPackage (bắt buộc gọi trước)
     await api("apiv1/fee/newPackage", { check: 1 });
 
     // Step 1: check deviceList
@@ -52,7 +61,11 @@ export default async function handler(req, res) {
     if (deviceList?.data?.list?.some(
       d => d.is_free === 1 && d.pay_mode === "subscription"
     )) {
-      return res.json({ status: "has_trial", detail: "Already have trial device", deviceList });
+      return res.json({
+        status: "has_trial",
+        detail: "Already have trial device",
+        deviceList
+      });
     }
 
     // Step 2: mealList
@@ -91,7 +104,11 @@ export default async function handler(req, res) {
     if (pay?.code === 200) {
       return res.json({ status: "success", payment: pay });
     } else if (pay?.code === 400437) {
-      return res.json({ status: "retry_later", message: "Frequent Request, please try later", payment: pay });
+      return res.json({
+        status: "retry_later",
+        message: "Frequent Request, please try later",
+        payment: pay
+      });
     } else {
       return res.json({ status: "failed", payment: pay });
     }
