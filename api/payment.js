@@ -1,13 +1,17 @@
 import fetch from "node-fetch";
 import HttpsProxyAgent from "https-proxy-agent";
 
+export const config = {
+  runtime: "nodejs"
+};
+
 export default async function handler(req, res) {
+  // ✅ CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, access-token, login-id, web-fingerprint");
 
   if (req.method === "OPTIONS") {
-    // Trả về luôn cho preflight request
     return res.status(200).end();
   }
 
